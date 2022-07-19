@@ -14,7 +14,7 @@ from utils import (
 )
 
 
-def convert(root_dir: str, export_dir: str, typename: str):
+def convert(root_dir: str, export_dir: str, typename: str, isTest: bool):
     """
     Walks inside root_dir (should oly contain original midv500 dataset folders),
     reads all annotations, and creates coco styled annotation file
@@ -29,10 +29,15 @@ def convert(root_dir: str, export_dir: str, typename: str):
     create_dir(export_dir)
 
     # create export_dir/images if not present
-    absolute_img_path = os.path.join(export_dir, "images")
-    absolute_maks_path = os.path.join(export_dir, "masks")
-    create_dir(absolute_img_path)
-    create_dir(absolute_maks_path)
+    absolute_set_path = os.path.join(export_dir, "train")
+    if isTest:
+        absolute_set_path = absolute_set_path.replace("train", "test")
+    create_dir(absolute_set_path)
+    absolute_coco_path = os.path.join(export_dir, "coco")
+    absolute_coco_path = os.path.join(absolute_coco_path, "train")
+    if isTest:
+        absolute_coco_path = absolute_coco_path.replace("train", "test")
+    create_dir(absolute_coco_path)
 
     # init coco vars
     images = []
@@ -52,10 +57,8 @@ def convert(root_dir: str, export_dir: str, typename: str):
         
         # resize it and store it at images path
         image = cv2.resize(raw_image, target_shape, interpolation=cv2.INTER_AREA)
-        cv2.imwrite(os.path.join(absolute_img_path, f'{ind}.png'), image)
+        cv2.imwrite(os.path.join(absolute_set_path, f'{ind}.png'), image)
         
-        #raw_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
         # prepare image info
         image_dict = dict()
         image_dict["file_name"] = f'{ind}.png'
@@ -80,15 +83,15 @@ def convert(root_dir: str, export_dir: str, typename: str):
         mask_coords = [[round(m/3) for m in coord] for coord in quad["quad"]]
 
         # create mask from poly coords
-        mask = np.zeros(image.shape, dtype=np.uint8)
-        mask_coords_np = np.array(mask_coords, dtype=np.int32)
-        cv2.fillPoly(mask, mask_coords_np.reshape(-1, 4, 2), color=(255, 255, 255))
-        mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-        mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY)[1]
+        # mask = np.zeros(image.shape, dtype=np.uint8)
+        # mask_coords_np = np.array(mask_coords, dtype=np.int32)
+        # cv2.fillPoly(mask, mask_coords_np.reshape(-1, 4, 2), color=(255, 255, 255))
+        # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+        # mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY)[1]
 
-        # store mask resized
-        #mask_resized = cv2.resize(mask, target_shape, interpolation=cv2.INTER_AREA)
-        cv2.imwrite(os.path.join(absolute_maks_path, f'{ind}_mask.png'), mask)
+        # # store mask resized
+        # #mask_resized = cv2.resize(mask, target_shape, interpolation=cv2.INTER_AREA)
+        # cv2.imwrite(os.path.join(absolute_maks_path, f'{ind}_mask.png'), mask)
 
         # get voc style bounding box coordinates [minx, miny, maxx, maxy] of the mask
         label_xmin = min([pos[0] for pos in mask_coords])
@@ -132,17 +135,17 @@ def convert(root_dir: str, export_dir: str, typename: str):
     coco_dict["categories"] = [{"name": "id_card", "id": 1}]
 
     # export coco dict
-    export_path = os.path.join(export_dir, typename + "_coco.json")
+    export_path = os.path.join(absolute_coco_path, "dataset.json")
     with open(export_path, "w") as f:
         json.dump(coco_dict, f)
     
     # zip images folder
-    with zipfile.ZipFile(f'{typename}.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(absolute_img_path):
-            for file in files:
-                zipf.write(os.path.join(root, file), 
-                        os.path.relpath(os.path.join(root, file), 
-                                        os.path.join(absolute_img_path, '..')))
+    # with zipfile.ZipFile(f'{typename}.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+    #     for root, _, files in os.walk(absolute_img_path):
+    #         for file in files:
+    #             zipf.write(os.path.join(root, file), 
+    #                     os.path.relpath(os.path.join(root, file), 
+    #                                     os.path.join(absolute_img_path, '..')))
 
 
 
@@ -162,8 +165,12 @@ if __name__ == "__main__":
     #args = vars(ap.parse_args())
 
     args = dict() 
-    args["root_dir"] = "../data/"
+    args["root_train"] = "../data_train/"
+    args["root_test"] = "../data_test/"
     args["export_dir"] = "../export/"
 
-    # convert dataset
-    convert(args["root_dir"], args["export_dir"], "simple")
+    # convert train dataset
+    convert(args["root_train"], args["export_dir"], "simple", isTest=False)
+
+    # convert test dataset
+    convert(args["root_test"], args["export_dir"], "simple", isTest=True)
