@@ -104,6 +104,44 @@ def list_custom_annotation_paths(
 
     return relative_filepath_list
 
+def list_documents_path(
+    directory: str
+) -> list:
+    """
+    Accepts a folder directory containing image files.
+    Returns a list of image file paths present in given directory.
+    If ignore_background_only_ones is True, json's coresponding  to background
+    only images are discarded.
+    """
+
+    # walk directories recursively and find json files
+    relative_filepath_list = []
+    # r=root, d=directories, f=files
+    for r, _, f in os.walk(directory):
+        for file in f:
+            if file.split("_")[-1] in ["id.json", "passport.json", "drvlic.json", "homereturn.json", "passportcard.json", "bordercrossing.json", "ssn82.json", "internalpassport.json", "new.json", "old.json"]:
+                # get abs file path
+                abs_filepath = os.path.join(r, file)
+            # if not abs_filepath.split(os.sep)[-1] in :
+            #     continue
+            # else:
+                abs_filepath = abs_filepath.replace("\\", "/")  # for windows
+                relative_filepath = abs_filepath.split(directory)[
+                    -1
+                ]  # get relative path from abs path
+                relative_filepath = [
+                    relative_filepath[1:]
+                    if relative_filepath[0] == "/"
+                    else relative_filepath
+                ][0]
+                relative_filepath_list.append(relative_filepath)
+
+    number_of_files = len(relative_filepath_list)
+    folder_name = directory.split(os.sep)[-1]
+    print("Selected {} image files from folder {}.".format(number_of_files, folder_name))
+
+    return relative_filepath_list
+
 def list_annotation_paths_recursively(
     directory: str, ignore_background_only_ones: bool = True
 ) -> list:
